@@ -19,9 +19,23 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // CORS
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+];
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:")) {
+        cb(null, true);
+      } else {
+        cb(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true
   })
 );
@@ -34,7 +48,7 @@ app.use(cookieParser());
 // Rate limit for authentication APIs
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: 500,
   message: {
     success: false,
     message: "Too many requests, please try again later"
@@ -61,5 +75,12 @@ app.use((req, res) => {
 
 // Error handler
 app.use(errorHandler);
+
+app.use(
+    cors({
+        origin: "http://localhost:5173",
+        credentials: true,
+    })
+);
 
 module.exports = app;

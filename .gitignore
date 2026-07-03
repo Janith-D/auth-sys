@@ -1,3 +1,9 @@
 node_modules/
 .env
 package-lock.json
+
+# Frontend
+auth-frontend/node_modules/
+auth-frontend/dist/
+auth-frontend/dist-ssr/
+*.local

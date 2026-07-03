@@ -1,0 +1,7 @@
+◇ injected env (8) from src\.env // tip: ◈ encrypted .env [www.dotenvx.com]
+Server running on port 5000
+MongoDB connected : ac-vfsuqoz-shard-00-00.ijefkqq.mongodb.net
+[0mPOST /api/auth/login [32m200[0m 596.622 ms - 541[0m
+[0mGET /api/auth/me [32m200[0m 156.830 ms - 220[0m
+[0mOPTIONS /api/auth/login [32m204[0m 0.847 ms - 0[0m
+[0mPOST /api/auth/login [32m200[0m 870.291 ms - 548[0m
