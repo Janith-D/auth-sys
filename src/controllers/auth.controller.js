@@ -1,137 +1,169 @@
+const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const RefreshToken = require("../models/refreshToken.model");
 const asyncHandler = require("../utils/asyncHandler");
-const { generateAccessToken, generateRefreshToken } = require("../utils/generateToken");
-const jwt = require("jsonwebtoken");
+const {
+  generateAccessToken,
+  generateRefreshToken
+} = require("../utils/generateToken");
 
+const getRefreshTokenExpiryDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date;
+};
+
+// REGISTER
 const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  const existing = await User.findOne({ email });
-  if (existing) {
-    return res.status(400).json({ message: "Email already in use" });
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error("Name, email and password are required");
   }
 
-  const user = await User.create({ name, email, password });
+  if (password.length < 8) {
+    res.status(400);
+    throw new Error("Password must be at least 8 characters");
+  }
 
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const existingUser = await User.findOne({ email });
 
-  await RefreshToken.create({ token: refreshToken, user: user._id });
+  if (existingUser) {
+    res.status(409);
+    throw new Error("User already exists");
+  }
 
-  res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 15 * 60 * 1000,
-  });
-
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+  const user = await User.create({
+    name,
+    email,
+    password
   });
 
   res.status(201).json({
     success: true,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    accessToken,
+    message: "User registered successfully",
+    data: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
   });
 });
 
+// LOGIN
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("Email and password are required");
+  }
+
   const user = await User.findOne({ email }).select("+password");
+
   if (!user || !(await user.comparePassword(password))) {
-    return res.status(401).json({ message: "Invalid email or password" });
+    res.status(401);
+    throw new Error("Invalid email or password");
   }
 
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  if (!user.isActive) {
+    res.status(403);
+    throw new Error("Account is disabled");
+  }
 
-  await RefreshToken.create({ token: refreshToken, user: user._id });
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-  res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 15 * 60 * 1000,
+  await RefreshToken.create({
+    user: user._id,
+    token: refreshToken,
+    expiresAt: getRefreshTokenExpiryDate()
   });
 
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  res.json({
+  res.status(200).json({
     success: true,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    message: "Login successful",
     accessToken,
+    refreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
   });
 });
 
-const logout = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.cookies;
-  if (refreshToken) {
-    await RefreshToken.findOneAndDelete({ token: refreshToken });
-  }
+// REFRESH ACCESS TOKEN
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
 
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
-
-  res.json({ success: true, message: "Logged out successfully" });
-});
-
-const refresh = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.cookies;
   if (!refreshToken) {
-    return res.status(401).json({ message: "No refresh token" });
+    res.status(401);
+    throw new Error("Refresh token is required");
   }
 
-  const stored = await RefreshToken.findOne({ token: refreshToken });
-  if (!stored) {
-    return res.status(401).json({ message: "Invalid refresh token" });
+  const storedToken = await RefreshToken.findOne({
+    token: refreshToken,
+    isRevoked: false
+  });
+
+  if (!storedToken) {
+    res.status(403);
+    throw new Error("Invalid refresh token");
   }
 
-  try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const accessToken = generateAccessToken(decoded.id);
-    const newRefreshToken = generateRefreshToken(decoded.id);
+  const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    await RefreshToken.findByIdAndDelete(stored._id);
-    await RefreshToken.create({ token: newRefreshToken, user: decoded.id });
+  const user = await User.findById(decoded.id);
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
-    });
-
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.json({ success: true, accessToken });
-  } catch {
-    await RefreshToken.findByIdAndDelete(stored._id);
-    return res.status(401).json({ message: "Refresh token expired" });
+  if (!user || !user.isActive) {
+    res.status(403);
+    throw new Error("User not found or inactive");
   }
+
+  const newAccessToken = generateAccessToken(user);
+
+  res.status(200).json({
+    success: true,
+    accessToken: newAccessToken
+  });
 });
 
+// LOGOUT
+const logout = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    res.status(400);
+    throw new Error("Refresh token is required");
+  }
+
+  await RefreshToken.findOneAndUpdate(
+    { token: refreshToken },
+    { isRevoked: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Logout successful"
+  });
+});
+
+// GET CURRENT USER
 const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-  res.json({ success: true, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  res.status(200).json({
+    success: true,
+    user: req.user
+  });
 });
 
-module.exports = { register, login, logout, refresh, getMe };
+module.exports = {
+  register,
+  login,
+  refreshAccessToken,
+  logout,
+  getMe
+};

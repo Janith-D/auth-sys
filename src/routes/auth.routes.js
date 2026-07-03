@@ -1,13 +1,32 @@
-const { Router } = require("express");
-const { register, login, logout, refresh, getMe } = require("../controllers/auth.controller");
-const { authenticate } = require("../moddleware/auth.middleware");
+const express = require("express");
+const {
+  register,
+  login,
+  refreshAccessToken,
+  logout,
+  getMe
+} = require("../controllers/auth.controller");
 
-const router = Router();
+const {
+  protect,
+  authorizeRoles
+} = require("../middleware/auth.middleware");
+
+const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
-router.post("/logout", authenticate, logout);
-router.post("/refresh", refresh);
-router.get("/me", authenticate, getMe);
+router.post("/refresh-token", refreshAccessToken);
+router.post("/logout", logout);
+
+router.get("/me", protect, getMe);
+
+// Example admin-only route
+router.get("/admin-only", protect, authorizeRoles("admin"), (req, res) => {
+  res.json({
+    success: true,
+    message: "Welcome admin"
+  });
+});
 
 module.exports = router;

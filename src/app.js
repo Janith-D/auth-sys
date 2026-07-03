@@ -1,35 +1,65 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
 
-const errorMiddleware = require("./moddleware/error.middleware");
 const authRoutes = require("./routes/auth.routes");
+const errorHandler = require("./middleware/error.middleware");
 
 const app = express();
 
+// Security middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
-app.use(morgan("dev"));
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+
+// Logger
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
+
+// CORS
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true
+  })
+);
+
+// Body parser
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-const limiter = rateLimit({
+// Rate limit for authentication APIs
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many requests from this IP",
-});
-app.use("/api", limiter);
-
-app.use("/api/auth", authRoutes);
-
-app.get("/", (req, res) => {
-  res.json({ message: "Auth system API" });
+  limit: 100,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later"
+  }
 });
 
-app.use(errorMiddleware);
+app.use("/api/auth", authLimiter, authRoutes);
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is running"
+  });
+});
+
+// 404 route
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found"
+  });
+});
+
+// Error handler
+app.use(errorHandler);
 
 module.exports = app;
