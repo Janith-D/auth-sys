@@ -5,9 +5,16 @@ package-lock.json
 *.err
 stdout.txt
 stderr.txt
+dist/
 
 # Frontend
 auth-frontend/node_modules/
 auth-frontend/dist/
 auth-frontend/dist-ssr/
 *.local
+
+# Backend
+auth-backend/node_modules/
+auth-backend/dist/
+auth-backend/*.log
+auth-backend/*.err
