@@ -14,36 +14,40 @@ Full-stack authentication system with JWT access & refresh tokens.
 ## Project Structure
 
 ```
-├── src/                    # Backend API
-│   ├── config/            # Database connection
-│   ├── controllers/       # Route handlers
-│   ├── middleware/        # Auth & error middleware
-│   ├── models/            # Mongoose schemas
-│   ├── routes/            # Express routes
-│   ├── utils/             # Token generation, async handler
-│   ├── app.js             # Express app setup
-│   └── server.js          # Entry point
-├── auth-frontend/         # React frontend
+├── auth-backend/            # Backend API (TypeScript)
 │   └── src/
-│       ├── api/           # Axios instance & interceptors
-│       ├── app/           # Redux store
-│       ├── features/auth/ # Auth slice, service, thunks
-│       ├── pages/         # Login, Register, Dashboard
-│       └── routes/        # Protected route guard
+│       ├── config/         # CORS, rate limiter config
+│       ├── constants/      # App constants
+│       ├── controllers/    # Route handlers
+│       ├── db/             # MongoDB connection
+│       ├── helpers/        # Response helpers
+│       ├── middleware/     # Auth & error middleware
+│       ├── models/         # Mongoose schemas
+│       ├── routes/         # Express routes
+│       ├── scripts/        # Utility scripts
+│       ├── seed/           # Database seed scripts
+│       ├── service/        # Business logic layer
+│       ├── types/          # TypeScript type definitions
+│       ├── util/           # Environment helpers
+│       ├── utils/          # Token generation, async handler
+│       ├── views/          # Templates
+│       ├── app.ts          # Express app setup
+│       └── server.ts       # Entry point
+├── auth-frontend/           # React frontend (TypeScript)
+│   └── src/
+│       ├── api/            # Axios instance & interceptors
+│       ├── app/            # Redux store
+│       ├── features/auth/  # Auth slice, service, thunks
+│       ├── pages/          # Login, Register, Dashboard
+│       └── routes/         # Protected route guard
 └── README.md
 ```
 
 ## Backend Setup
 
 ```bash
-# Install dependencies
+cd auth-backend
 npm install
-
-# Configure environment
-cp src/.env.example src/.env
-# Edit .env with your MongoDB URI and JWT secrets
-
-# Start development server
 npm run dev
 ```
 
@@ -52,8 +56,6 @@ npm run dev
 ```bash
 cd auth-frontend
 npm install
-
-# Start development server (default: http://localhost:5173)
 npm run dev
 ```
 
@@ -86,7 +88,7 @@ The frontend uses Redux Toolkit for state management:
 
 ## Environment Variables
 
-### Backend (`src/.env`)
+### Backend (`auth-backend/src/.env`)
 
 | Variable | Description |
 |----------|-------------|
