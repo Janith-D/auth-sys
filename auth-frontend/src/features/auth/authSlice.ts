@@ -1,40 +1,73 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import authService from "./authService";
+import type { RegisterBody, LoginBody } from "../../types/auth";
+import type { RootState } from "../../app/store";
 
-const user = JSON.parse(localStorage.getItem("user"));
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
-export const register = createAsyncThunk("auth/register", async (userData, thunkAPI) => {
-  try {
-    return await authService.register(userData);
-  } catch (error) {
-    const message = error.response?.data?.message || error.message;
-    return thunkAPI.rejectWithValue(message);
+interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+  message: string;
+}
+
+const storedUser = localStorage.getItem("user");
+const user: User | null = storedUser ? JSON.parse(storedUser) : null;
+
+export const register = createAsyncThunk(
+  "auth/register",
+  async (userData: RegisterBody, thunkAPI) => {
+    try {
+      return await authService.register(userData);
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message || (error as Error)?.message || "Registration failed";
+      return thunkAPI.rejectWithValue(message);
+    }
   }
-});
+);
 
-export const login = createAsyncThunk("auth/login", async (userData, thunkAPI) => {
-  try {
-    return await authService.login(userData);
-  } catch (error) {
-    const message = error.response?.data?.message || error.message;
-    return thunkAPI.rejectWithValue(message);
+export const login = createAsyncThunk(
+  "auth/login",
+  async (userData: LoginBody, thunkAPI) => {
+    try {
+      return await authService.login(userData);
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message || (error as Error)?.message || "Login failed";
+      return thunkAPI.rejectWithValue(message);
+    }
   }
-});
+);
 
-export const getMe = createAsyncThunk("auth/getMe", async (_, thunkAPI) => {
-  try {
-    return await authService.getMe();
-  } catch (error) {
-    const message = error.response?.data?.message || error.message;
-    return thunkAPI.rejectWithValue(message);
+export const getMe = createAsyncThunk(
+  "auth/getMe",
+  async (_, thunkAPI) => {
+    try {
+      return await authService.getMe();
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message || (error as Error)?.message || "Failed to get user";
+      return thunkAPI.rejectWithValue(message);
+    }
   }
-});
+);
 
 export const logout = createAsyncThunk("auth/logout", async () => {
   await authService.logout();
 });
 
-const initialState = {
+const initialState: AuthState = {
   user: user || null,
   isLoading: false,
   isError: false,
@@ -66,7 +99,7 @@ const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload as string;
       })
       .addCase(login.pending, (state) => {
         state.isLoading = true;
@@ -79,7 +112,7 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload as string;
       })
       .addCase(getMe.pending, (state) => {
         state.isLoading = true;
@@ -92,7 +125,7 @@ const authSlice = createSlice({
       .addCase(getMe.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload as string;
         state.user = null;
       })
       .addCase(logout.fulfilled, (state) => {
@@ -103,4 +136,5 @@ const authSlice = createSlice({
 });
 
 export const { reset } = authSlice.actions;
+export const selectAuth = (state: RootState) => state.auth;
 export default authSlice.reducer;

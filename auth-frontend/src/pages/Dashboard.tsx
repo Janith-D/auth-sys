@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { getMe, logout, reset } from "../features/auth/authSlice";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [initialLoad, setInitialLoad] = useState(true);
 
-  const { user, isLoading, isError, message } = useSelector((state) => state.auth);
+  const { user, isLoading, isError, message } = useAppSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -45,8 +47,12 @@ const Dashboard = () => {
         <div className="grid-overlay" />
         <div className="auth-card" style={{ textAlign: "center" }}>
           <div className="logo-icon" style={{ margin: "0 auto 20px" }}>!</div>
-          <h1 style={{ color: "#fca5a5", fontSize: 22, marginBottom: 8 }}>Something went wrong</h1>
-          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>{message}</p>
+          <h1 style={{ color: "#fca5a5", fontSize: 22, marginBottom: 8 }}>
+            Something went wrong
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>
+            {message}
+          </p>
           <button className="btn btn-primary" onClick={() => navigate("/login")}>
             Back to Login
           </button>
@@ -71,7 +77,12 @@ const Dashboard = () => {
   }
 
   const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    ? user.name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
     : "?";
 
   return (
@@ -84,7 +95,11 @@ const Dashboard = () => {
           <div className="logo-small">◆</div>
           Auth System
         </div>
-        <button className="btn btn-danger" style={{ width: "auto", padding: "10px 24px" }} onClick={handleLogout}>
+        <button
+          className="btn btn-danger"
+          style={{ width: "auto", padding: "10px 24px" }}
+          onClick={handleLogout}
+        >
           Sign Out
         </button>
       </nav>

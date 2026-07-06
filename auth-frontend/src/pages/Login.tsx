@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { login, reset } from "../features/auth/authSlice";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const { email, password } = formData;
 
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
-  const { user, isLoading, isError, isSuccess, message } = useSelector((state) => state.auth);
+  const { user, isLoading, isError, isSuccess, message } = useAppSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     if (isSuccess) {
@@ -31,11 +33,11 @@ const Login = () => {
     };
   }, [dispatch]);
 
-  const onChange = (e) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     dispatch(login({ email, password }));
   };
