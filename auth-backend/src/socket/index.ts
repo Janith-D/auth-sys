@@ -87,7 +87,7 @@ export const initializeSocket = (server: HttpServer) => {
     });
 
     socket.on("screen:frame", (data: { receiverId: string; data: any }) => {
-      io.to(data.receiverId).emit("screen:frame", { senderId: user.userId, data: data.data });
+      io.to(data.receiverId).emit("screen:frame", { senderId: user.userId, name: user.userId, data: data.data });
     });
 
     socket.on("screen:end", (data: { receiverId: string }) => {

@@ -29,6 +29,7 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const fallbackTimerRef = useRef<number>(0);
   const iceConnectedRef = useRef(false);
+  const transportRef = useRef<"webrtc" | "socketio" | null>(null);
 
   const cleanup = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -55,6 +56,7 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
     setSharerName(null);
     setTransport(null);
     iceConnectedRef.current = false;
+    transportRef.current = null;
   }, []);
 
   const stopSharing = useCallback(() => {
@@ -70,6 +72,8 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
     const targetId = otherUserId;
     if (!stream || !sock || !targetId) return;
 
+    // Notify receiver of fallback mode
+    sock.emit("screen:offer", { receiverId: targetId, name: userName, sdp: null });
     setTransport("socketio");
     const canvas = document.createElement("canvas");
     let stopped = false;
@@ -109,7 +113,7 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
       stopped = true;
       stopSharing();
     };
-  }, [socket, otherUserId, stopSharing]);
+  }, [socket, otherUserId, userName, stopSharing]);
 
   const startSharing = useCallback(async () => {
     if (!socket || !otherUserId) return;
@@ -153,12 +157,33 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
         pc.oniceconnectionstatechange = () => {
           if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
             iceConnectedRef.current = true;
+            transportRef.current = "webrtc";
             setTransport("webrtc");
           }
-          if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
-            if (transport === "webrtc") {
+          if (pc.iceConnectionState === "disconnected") {
+            if (transportRef.current === "webrtc") {
+              performICERestart(pc, socket, otherUserId, userName);
+            }
+          }
+          if (pc.iceConnectionState === "failed") {
+            if (transportRef.current === "webrtc") {
               startSocketIOFallback();
             }
+          }
+        };
+
+        const performICERestart = async (p: RTCPeerConnection, sock: Socket, targetId: string, displayName: string) => {
+          try {
+            const restartOffer = await p.createOffer({ iceRestart: true });
+            await p.setLocalDescription(restartOffer);
+            sock.emit("screen:offer", {
+              receiverId: targetId,
+              name: displayName,
+              sdp: { type: restartOffer.type, sdp: restartOffer.sdp },
+            });
+          } catch {
+            // restart failed, fall back
+            startSocketIOFallback();
           }
         };
 
@@ -186,14 +211,25 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
     } catch {
       // User cancelled
     }
-  }, [socket, otherUserId, userName, cleanup, stopSharing, startSocketIOFallback, transport]);
+  }, [socket, otherUserId, userName, cleanup, stopSharing, startSocketIOFallback]);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleOffer = async (data: { senderId: string; name?: string; sdp?: any }) => {
       if (data.sdp && data.sdp.type === "offer") {
-        // WebRTC offer
+        if (pcRef.current) {
+          // ICE restart — update existing PC
+          try {
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await pcRef.current.createAnswer();
+            await pcRef.current.setLocalDescription(answer);
+            socket.emit("screen:answer", { receiverId: data.senderId, sdp: { type: answer.type, sdp: answer.sdp } });
+          } catch {}
+          return;
+        }
+
+        // Fresh WebRTC offer
         cleanup();
         setSharerId(data.senderId);
         setSharerName(data.name || null);
@@ -215,6 +251,7 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
 
           pc.oniceconnectionstatechange = () => {
             if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+              transportRef.current = "webrtc";
               setTransport("webrtc");
             }
           };
@@ -250,7 +287,14 @@ export function useScreenShare(socket: Socket | null, userId: string, userName: 
       } catch {}
     };
 
-    const handleFrame = (data: { data: ArrayBuffer }) => {
+    const handleFrame = (data: { data: ArrayBuffer; senderId?: string; name?: string }) => {
+      setRemoteStream(null);
+      if (data.senderId) {
+        setSharerId(data.senderId);
+      }
+      if (data.name) {
+        setSharerName(data.name);
+      }
       if (frameUrlRef.current) {
         URL.revokeObjectURL(frameUrlRef.current);
       }

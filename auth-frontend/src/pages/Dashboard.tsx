@@ -132,6 +132,9 @@ const Dashboard = () => {
           <div className="dashboard-card">
             <div className="card-label">Quick Actions</div>
             <div className="quick-actions">
+              <button className="btn btn-primary" onClick={() => navigate("/chat")}>
+                Chat
+              </button>
               <button className="btn btn-outline" onClick={() => navigate("/login")}>
                 Switch Account
               </button>
