@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 
 import authRoutes from "./routes/auth.routes";
+import chatRoutes from "./routes/chat.routes";
 import errorHandler from "./middleware/error.middleware";
 import { corsOptions, authLimiter } from "./config";
 
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({

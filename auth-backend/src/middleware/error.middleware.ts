@@ -1,23 +1,30 @@
 import { Request, Response, NextFunction } from "express";
-import { ApiResponse } from "../types";
 
 const errorHandler = (
-  err: Error,
+  err: Error & { statusCode?: number; name?: string },
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  let statusCode = err.statusCode || res.statusCode;
 
-  const response: ApiResponse = {
+  if (statusCode === 200) {
+    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+      statusCode = 401;
+    } else if (err.name === "ValidationError") {
+      statusCode = 400;
+    } else {
+      statusCode = 500;
+    }
+  }
+
+  res.status(statusCode).json({
     success: false,
     message: err.message || "Server Error",
     ...(process.env.NODE_ENV === "production"
       ? {}
       : { stack: err.stack }),
-  };
-
-  res.status(statusCode).json(response);
+  });
 };
 
 export default errorHandler;

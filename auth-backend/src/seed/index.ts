@@ -10,6 +10,8 @@ const seed = async () => {
     await mongoose.connect(process.env.MONGO_URI as string);
     console.log("Connected to MongoDB");
 
+    await User.deleteMany({ email: { $in: ["admin@example.com", "test@example.com"] } });
+
     await User.create({
       name: "Admin User",
       email: "admin@example.com",
